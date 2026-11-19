@@ -8,9 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     // Firebase configuration is optional for debug builds.
-if (file("google-services.json").isFile) {
-    apply(plugin = "com.google.gms.google-services")
-}
+
 
     alias(libs.plugins.ksp)
 }
