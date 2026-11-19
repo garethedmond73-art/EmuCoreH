@@ -23,7 +23,6 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
-import com.sbro.emucoreh.R
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -366,19 +365,28 @@ class PlayerProfileRepository(context: Context) {
     }
 
     suspend fun signInWithGoogle(activity: Activity) {
+        // The Google Services plugin generates this resource only when a Firebase
+        // configuration is present. Keep builds without that optional file working.
+        val clientIdResourceId = activity.resources.getIdentifier(
+            "default_web_client_id", "string", activity.packageName
+        )
         val googleIdToken = try {
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(
-                    GetSignInWithGoogleOption.Builder(activity.getString(R.string.default_web_client_id)).build()
-                )
-                .build()
-            val credential = CredentialManager.create(activity).getCredential(activity, request).credential
-            if (credential is CustomCredential &&
-                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-            ) {
-                GoogleIdTokenCredential.createFrom(credential.data).idToken
-            } else {
+            if (clientIdResourceId == 0) {
                 null
+            } else {
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(
+                        GetSignInWithGoogleOption.Builder(activity.getString(clientIdResourceId)).build()
+                    )
+                    .build()
+                val credential = CredentialManager.create(activity).getCredential(activity, request).credential
+                if (credential is CustomCredential &&
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                ) {
+                    GoogleIdTokenCredential.createFrom(credential.data).idToken
+                } else {
+                    null
+                }
             }
         } catch (_: GetCredentialCancellationException) {
             return
