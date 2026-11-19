@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Context
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
-import com.sbro.emucoreh.R
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
@@ -22,8 +21,13 @@ object DriveAuthorization {
     const val SCOPE = "https://www.googleapis.com/auth/drive.file"
 
     suspend fun chooseAccount(activity: Activity): String {
-        // Static reference also keeps the generated OAuth resource in minified release builds.
-        val clientId = activity.getString(R.string.default_web_client_id)
+        // The Google Services plugin generates this resource only when a Firebase
+        // configuration is present. Report a configuration error when it is absent.
+        val clientIdResourceId = activity.resources.getIdentifier(
+            "default_web_client_id", "string", activity.packageName
+        )
+        if (clientIdResourceId == 0) throw DriveBackupException("configuration")
+        val clientId = activity.getString(clientIdResourceId)
         if (clientId.isBlank()) throw DriveBackupException("configuration")
         val request = GetCredentialRequest.Builder().addCredentialOption(
             GetSignInWithGoogleOption.Builder(clientId).build()
