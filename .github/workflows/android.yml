@@ -12,28 +12,26 @@ jobs:
     steps:
       - name: Get source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Fetch emulator dependencies
         shell: bash
         run: |
           set -euo pipefail
-          # The upstream emulator keeps its submodule manifest at core/.gitmodules,
-          # rather than the repository root, so actions/checkout cannot discover it.
-          while read -r key path; do
-            module="${key%.path}"
-            url="$(git config -f core/.gitmodules --get "${module}.url")"
-            if [ ! -d "$path/.git" ]; then
-              echo "Cloning $path from $url"
-              mkdir -p "$(dirname "$path")"
-              git clone --depth 1 --recurse-submodules "$url" "$path"
-            else
-              git -C "$path" submodule sync --recursive
-            fi
 
-            # Always initialize nested dependencies, including after a fresh clone.
-            git -C "$path" submodule sync --recursive
-            git -C "$path" submodule update --init --recursive --depth 1
-          done < <(git config -f core/.gitmodules --get-regexp '^submodule\..*\.path$')
+          # The upstream project stores its submodule manifest in core/.gitmodules.
+          # Git only discovers a manifest at the repository root, so temporarily
+          # expose the same manifest there and let Git resolve the pinned gitlinks.
+          cp core/.gitmodules .gitmodules
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth 1
+
+          # Fail here with a clear message rather than later in CMake if a
+          # required dependency was not populated.
+          test -f core/deps/glslang/CMakeLists.txt
+          test -f core/deps/libchdr/deps/zstd-1.5.6/build/cmake/CMakeLists.txt
+          echo "All emulator submodules and nested dependencies are present."
 
       - name: Set up Java
         uses: actions/setup-java@v4
