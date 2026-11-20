@@ -27,8 +27,12 @@ jobs:
               mkdir -p "$(dirname "$path")"
               git clone --depth 1 --recurse-submodules "$url" "$path"
             else
-              git -C "$path" submodule update --init --recursive
+              git -C "$path" submodule sync --recursive
             fi
+
+            # Always initialize nested dependencies, including after a fresh clone.
+            git -C "$path" submodule sync --recursive
+            git -C "$path" submodule update --init --recursive --depth 1
           done < <(git config -f core/.gitmodules --get-regexp '^submodule\..*\.path$')
 
       - name: Set up Java
