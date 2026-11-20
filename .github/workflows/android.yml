@@ -20,82 +20,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          # core/.gitmodules is stored inside the emulator source tree.
-          # Its paths are relative to that source tree, so prefix them with
-          # "core/" when cloning into this Android wrapper repository.
-          while read -r key module_path; do
+          # Read every submodule path from the emulator's nested manifest.
+          while IFS=' ' read -r key module_path; do
             module="${key%.path}"
             url="$(git config -f core/.gitmodules --get "${module}.url")"
             path="core/${module_path}"
             echo "Preparing dependency: $path"
             mkdir -p "$(dirname "$path")"
-
-            if [ ! -d "$path/.git" ]; then
-              rm -rf "$path"
-              git clone --depth 1 --recurse-submodules "$url" "$path"
-            else
-              git -C "$path" fetch --depth 1 origin
-              git -C "$path" submodule sync --recursive
-              git -C "$path" submodule update --init --recursive --depth 1
-            fi
-
-            # Ensure nested dependencies are initialized even on fresh clones.
-            git -C "$path" submodule sync --recursive
-            git -C "$path" submodule update --init --recursive --depth 1
-          done < <(git config -f core/.gitmodules --list | while IFS='=' read -r key value; do case "$key" in submodule.*.path) printf '%s %s\n' "$key" "$value" ;; esac; done)
+            rm -rf "$path"
+            git clone --depth 1 --recurse-submodules "$url" "$path"
+          done < <(git config -f core/.gitmodules --list | grep -F '.path=' | sed 's/=/ /')
 
           test -f core/core/deps/glslang/CMakeLists.txt || {
-            echo "::error::glslang dependency was not populated at core/core/deps/glslang"
+            echo "::error::glslang dependency missing"
             exit 1
           }
           test -f core/core/deps/libchdr/deps/zstd-1.5.6/build/cmake/CMakeLists.txt || {
-            echo "::error::libchdr's pinned zstd dependency was not populated at core/core/deps/libchdr"
-            exit 1
-          }
-          echo "All required emulator dependencies are present."
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: platform-tools
-
-      - name: Install Android tools
-        run: |
-          sdkmanager "platforms;android-37.0"
-          sdkmanager "build-tools;37.0.0"
-          sdkmanager "ndk;29.0.14206865"
-          sdkmanager "cmake;3.30.5"
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.98.1
-          targets: aarch64-linux-android
-
-      - name: Build APK
-        run: |
-          chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon
-
-      - name: Save APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Gaz-Retro-Arcade-APK
-          path: app/build/outputs/apk/debug/*.apk
-)
-
-          test -f core/core/deps/glslang/CMakeLists.txt || {
-            echo "::error::glslang dependency was not populated at core/core/deps/glslang"
-            exit 1
-          }
-          test -f core/core/deps/libchdr/deps/zstd-1.5.6/build/cmake/CMakeLists.txt || {
-            echo "::error::libchdr's pinned zstd dependency was not populated at core/core/deps/libchdr"
+            echo "::error::libchdr zstd dependency missing"
             exit 1
           }
           echo "All required emulator dependencies are present."
