@@ -42,7 +42,53 @@ jobs:
             # Ensure nested dependencies are initialized even on fresh clones.
             git -C "$path" submodule sync --recursive
             git -C "$path" submodule update --init --recursive --depth 1
-          done < <(git config -f core/.gitmodules --get-regexp '^submodule\\..*\\.path$')
+          done < <(git config -f core/.gitmodules --get-regexp '^submodule\..*\.path
+
+          test -f core/core/deps/glslang/CMakeLists.txt || {
+            echo "::error::glslang dependency was not populated at core/core/deps/glslang"
+            exit 1
+          }
+          test -f core/core/deps/libchdr/deps/zstd-1.5.6/build/cmake/CMakeLists.txt || {
+            echo "::error::libchdr's pinned zstd dependency was not populated at core/core/deps/libchdr"
+            exit 1
+          }
+          echo "All required emulator dependencies are present."
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Install Android tools
+        run: |
+          sdkmanager "platforms;android-37.0"
+          sdkmanager "build-tools;37.0.0"
+          sdkmanager "ndk;29.0.14206865"
+          sdkmanager "cmake;3.30.5"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          targets: aarch64-linux-android
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Save APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gaz-Retro-Arcade-APK
+          path: app/build/outputs/apk/debug/*.apk
+)
 
           test -f core/core/deps/glslang/CMakeLists.txt || {
             echo "::error::glslang dependency was not populated at core/core/deps/glslang"
