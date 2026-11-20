@@ -2,7 +2,7 @@
 <resources>
     <string name="emulation_runtime_failure_title">Emulation stopped</string>
     <string name="emulation_runtime_failure_description">The runtime encountered an error and cannot safely continue. Exit this session and start the game again. The renderer was not changed automatically.\n\nDetails:\n</string>
-    <string name="app_name">"Gaz\'s Retro Arcade"</string>
+    <string name="app_name">"Gaz's Retro Arcade"</string>
 
     <!-- Navigation -->
     <string name="shell_library">Library</string>
