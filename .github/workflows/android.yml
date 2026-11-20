@@ -20,17 +20,30 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Read every submodule path from the emulator's nested manifest.
+          # Read every dependency path from the emulator's nested manifest.
           while IFS=' ' read -r key module_path; do
             module="${key%.path}"
             url="$(git config -f core/.gitmodules --get "${module}.url")"
             path="core/${module_path}"
             echo "Preparing dependency: $path"
+
+            # Asio is vendored in this repository at the version expected by
+            # this Flycast source. Replacing it with the fork's moving HEAD
+            # introduces incompatible APIs and breaks the Android C++ build.
+            if [[ "$module_path" == "core/deps/asio" ]] && [[ -f "$path/asio/include/asio.hpp" ]]; then
+              echo "Using repository-pinned Asio; skipping floating-HEAD clone."
+              continue
+            fi
+
             mkdir -p "$(dirname "$path")"
             rm -rf "$path"
             git clone --depth 1 --recurse-submodules "$url" "$path"
           done < <(git config -f core/.gitmodules --list | grep -F '.path=' | sed 's/=/ /')
 
+          test -f core/core/deps/asio/asio/include/asio.hpp || {
+            echo "::error::Compatible vendored Asio headers are missing"
+            exit 1
+          }
           test -f core/core/deps/glslang/CMakeLists.txt || {
             echo "::error::glslang dependency missing"
             exit 1
