@@ -1,4 +1,3 @@
-
 name: Build Gaz Retro Arcade APK
 
 on:
@@ -13,6 +12,24 @@ jobs:
     steps:
       - name: Get source code
         uses: actions/checkout@v4
+
+      - name: Fetch emulator dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The upstream emulator keeps its submodule manifest at core/.gitmodules,
+          # rather than the repository root, so actions/checkout cannot discover it.
+          while read -r key path; do
+            module="${key%.path}"
+            url="$(git config -f core/.gitmodules --get "${module}.url")"
+            if [ ! -d "$path/.git" ]; then
+              echo "Cloning $path from $url"
+              mkdir -p "$(dirname "$path")"
+              git clone --depth 1 --recurse-submodules "$url" "$path"
+            else
+              git -C "$path" submodule update --init --recursive
+            fi
+          done < <(git config -f core/.gitmodules --get-regexp '^submodule\..*\.path$')
 
       - name: Set up Java
         uses: actions/setup-java@v4
